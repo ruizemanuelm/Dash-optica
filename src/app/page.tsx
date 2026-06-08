@@ -38,6 +38,12 @@ type DocSortCol = Exclude<keyof DoctorStats, 'obrasSociales'>;
 interface SortState<C extends string> { col: C | null; dir: 'asc' | 'desc'; }
 
 export default function Dashboard() {
+  const [loggedIn, setLoggedIn] = useState(false);
+  if (!loggedIn) return <LoginScreen onLogin={() => setLoggedIn(true)} />;
+  return <DashboardContent />;
+}
+
+function DashboardContent() {
   const [selected,    setSelected]   = useState<BranchKey>('general');
   const [dateFrom,    setDateFrom]   = useState(monthStartStr);
   const [dateTo,      setDateTo]     = useState(todayStr);
@@ -177,7 +183,20 @@ export default function Dashboard() {
         { name: 'Derivados',  value: kpi.derivaciones,       color: '#005450' },
       ];
 
+  const obraSocialData = useMemo(() => {
+    const branchIds = isGeneral ? new Set(ACTIVE_IDS) : new Set([meta.apiId]);
+    const counts: Record<string, number> = {};
+    for (const item of allAdms) {
+      if (!branchIds.has(item.admission.branchId)) continue;
+      const os = item.admission.patient?.actor?.obraSocial?.trim() || '—';
+      counts[os] = (counts[os] ?? 0) + 1;
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  }, [allAdms, isGeneral, meta]);
+
   const chartColor = isGeneral ? '#147D78' : meta.color;
+
+  if (loading && allAdms.length === 0) return <LoadingScreen />;
 
   return (
     <div className="layout-root">
@@ -362,6 +381,21 @@ export default function Dashboard() {
                   </AreaChart>
                 </ResponsiveContainer>
               ) : <Empty loading={loading} />}
+            </div>
+            <div className="chart-card" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div className="chart-title">Admisiones por obra social</div>
+              <div className="chart-sub">{isGeneral ? 'Todas las sucursales' : meta.name} · {obraSocialData.length} obras sociales</div>
+              {loading ? <Empty loading={loading} /> : obraSocialData.length === 0 ? <Empty loading={false} /> : (
+                <div style={{ overflowY: 'auto', flex: 1, marginTop: '0.4rem', maxHeight: 150 }}>
+                  <BreakdownList
+                    title=""
+                    items={obraSocialData}
+                    barColor="#147D78"
+                    countColor="#147D78"
+                    barBg="#c8ebe8"
+                  />
+                </div>
+              )}
             </div>
             <div className="chart-card">
               <div className="chart-title">{isGeneral ? 'Atendidos por sucursal' : 'Distribución de turnos'}</div>
@@ -627,6 +661,151 @@ function Empty({ loading }: { loading: boolean }) {
   return (
     <div style={{ height: 150, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: '0.8rem' }}>
       {loading ? 'Cargando...' : 'Sin datos para el período'}
+    </div>
+  );
+}
+
+function LoadingScreen() {
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', flexDirection: 'column',
+      alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(135deg, #001a19 0%, #002725 60%, #003330 100%)',
+      gap: '1.5rem',
+    }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/logo-ocularyb.png"
+        alt="OcularYB"
+        style={{ height: 52, opacity: 0.85 }}
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+      <div style={{
+        width: 40, height: 40, borderRadius: '50%',
+        border: '3px solid rgba(255,255,255,0.08)',
+        borderTopColor: '#147D78',
+        animation: 'spin 0.8s linear infinite',
+      }} />
+      <div style={{ fontSize: '0.82rem', color: 'rgba(223,239,238,0.45)', letterSpacing: '0.04em' }}>
+        Cargando datos...
+      </div>
+    </div>
+  );
+}
+
+function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [usuario, setUsuario] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (usuario === 'admin' && password === '1234') {
+      onLogin();
+    } else {
+      setError(true);
+    }
+  };
+
+  return (
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'linear-gradient(135deg, #001a19 0%, #002725 60%, #003330 100%)',
+    }}>
+      <form onSubmit={handleSubmit} style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        borderRadius: 20,
+        padding: '2.5rem 2rem',
+        width: '100%',
+        maxWidth: 360,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1.2rem',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-ocularyb.png"
+            alt="OcularYB"
+            style={{ height: 52, marginBottom: '1rem' }}
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+          <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#dfefee', letterSpacing: '-0.02em' }}>Panel de gestión</div>
+          <div style={{ fontSize: '0.82rem', color: 'rgba(223,239,238,0.45)', marginTop: 4 }}>Ingresá tus credenciales para continuar</div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(223,239,238,0.5)', fontWeight: 600 }}>
+            Usuario
+          </label>
+          <input
+            type="text"
+            value={usuario}
+            onChange={e => { setUsuario(e.target.value); setError(false); }}
+            autoComplete="username"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: error ? '1px solid #f43f5e' : '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10,
+              padding: '0.65rem 0.9rem',
+              color: '#dfefee',
+              fontSize: '0.95rem',
+              outline: 'none',
+              width: '100%',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(223,239,238,0.5)', fontWeight: 600 }}>
+            Contraseña
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={e => { setPassword(e.target.value); setError(false); }}
+            autoComplete="current-password"
+            style={{
+              background: 'rgba(255,255,255,0.06)',
+              border: error ? '1px solid #f43f5e' : '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 10,
+              padding: '0.65rem 0.9rem',
+              color: '#dfefee',
+              fontSize: '0.95rem',
+              outline: 'none',
+              width: '100%',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        {error && (
+          <div style={{ fontSize: '0.82rem', color: '#f43f5e', textAlign: 'center', background: 'rgba(244,63,94,0.08)', borderRadius: 8, padding: '0.5rem' }}>
+            Usuario o contraseña incorrectos
+          </div>
+        )}
+
+        <button
+          type="submit"
+          style={{
+            background: 'linear-gradient(90deg, #147D78, #B8BD45)',
+            border: 'none',
+            borderRadius: 10,
+            padding: '0.75rem',
+            color: '#fff',
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            letterSpacing: '0.02em',
+            marginTop: '0.2rem',
+          }}
+        >
+          Ingresar
+        </button>
+      </form>
     </div>
   );
 }

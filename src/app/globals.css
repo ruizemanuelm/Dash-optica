@@ -207,6 +207,10 @@ body {
   50% { opacity: 0.4; }
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ─── VIEW TABS ───────────────────────────────────────────────────────────── */
 
 .view-tabs {
@@ -434,7 +438,7 @@ body {
 
 .bottom-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 0.75rem;
   flex-shrink: 0;
 }
