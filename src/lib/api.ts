@@ -314,6 +314,8 @@ export interface DoctorStats {
   nuevos: number;
   ausentes: number;
   derivados: number;
+  obrasSociales: Record<string, number>;
+  estudios: Record<string, number>;
 }
 
 export function computeDoctorStats(
@@ -328,11 +330,17 @@ export function computeDoctorStats(
     const nombre = item.admission.performingResource?.name?.trim() ?? '';
     if (!nombre || nombre === 'NINGUNO' || nombre === '—') continue;
     if (!map.has(nombre)) {
-      map.set(nombre, { nombre, atendidos: 0, nuevos: 0, ausentes: 0, derivados: 0 });
+      map.set(nombre, { nombre, atendidos: 0, nuevos: 0, ausentes: 0, derivados: 0, obrasSociales: {}, estudios: {} });
     }
     const d = map.get(nombre)!;
     const status = item.admission.admissionStatus?.code;
-    if (status === ADMISSION_STATUS.FINISHED)  d.atendidos++;
+    if (status === ADMISSION_STATUS.FINISHED) {
+      d.atendidos++;
+      const os = item.admission.patient?.actor?.obraSocial?.trim() || '—';
+      d.obrasSociales[os] = (d.obrasSociales[os] ?? 0) + 1;
+      const estudio = item.visitReason?.trim() || '—';
+      d.estudios[estudio] = (d.estudios[estudio] ?? 0) + 1;
+    }
     if (status === ADMISSION_STATUS.CANCELLED) d.ausentes++;
     if (isNewPatient(item.admission)) d.nuevos++;
     if (isReferral(item.admission))  d.derivados++;

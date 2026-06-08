@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
 import '../app/globals.css';
 import {
   fetchAdmissions, fetchSlots, downloadExcel,
@@ -34,7 +34,7 @@ const EMPTY_KPI: BranchKPIs = {
 
 type View = 'dashboard' | 'medicos';
 type AgendaSortCol = 'hora' | 'paciente' | 'medico' | 'tipo' | 'estado' | 'sucursal' | 'dni' | 'obraSocial';
-type DocSortCol = keyof DoctorStats;
+type DocSortCol = Exclude<keyof DoctorStats, 'obrasSociales'>;
 interface SortState<C extends string> { col: C | null; dir: 'asc' | 'desc'; }
 
 export default function Dashboard() {
@@ -51,7 +51,8 @@ export default function Dashboard() {
   const [downloading, setDownloading] = useState(false);
   const [view,        setView]       = useState<View>('dashboard');
   const [agendaSort,  setAgendaSort] = useState<SortState<AgendaSortCol>>({ col: null, dir: 'asc' });
-  const [docSort,     setDocSort]    = useState<SortState<DocSortCol>>({ col: 'atendidos', dir: 'desc' });
+  const [docSort,       setDocSort]       = useState<SortState<DocSortCol>>({ col: 'atendidos', dir: 'desc' });
+  const [expandedDoctor, setExpandedDoctor] = useState<string | null>(null);
 
   const loadAll = useCallback(async (from: string, to: string) => {
     setLoading(true);
@@ -433,33 +434,33 @@ export default function Dashboard() {
           <div className="doctors-layout">
             <div className="doctors-top">
               {/* Bar chart */}
-              <div className="chart-card">
-                <div className="chart-title">Top médicos por atenciones</div>
-                <div className="chart-sub">{isGeneral ? 'Todas las sucursales' : meta.name} · {dateFrom} → {dateTo}</div>
+              <div className="chart-card" style={{ flex: 1, minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div className="chart-title" style={{ fontSize: '0.82rem' }}>Top médicos por atenciones</div>
+                <div className="chart-sub" style={{ marginBottom: '0.4rem' }}>{isGeneral ? 'Todas las sucursales' : meta.name} · {dateFrom} → {dateTo}</div>
                 {chartDoctors.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={Math.max(180, chartDoctors.length * 28)}>
-                    <BarChart data={chartDoctors} layout="vertical" margin={{ top: 4, right: 20, left: 8, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e0eded" horizontal={false} />
-                      <XAxis type="number" tick={{ fontSize: 11, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#334155' }} axisLine={false} tickLine={false} width={120} />
-                      <Tooltip contentStyle={{ background: '#002725', border: 'none', borderRadius: 10, fontSize: 13 }} itemStyle={{ color: '#dfefee' }} />
-                      <Bar dataKey="atendidos" name="Atendidos" fill="#147D78" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                    <ResponsiveContainer width="100%" height={Math.max(150, chartDoctors.length * 21)}>
+                      <BarChart data={chartDoctors} layout="vertical" margin={{ top: 2, right: 16, left: 4, bottom: 2 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e0eded" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 9, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: 9, fill: '#334155' }} axisLine={false} tickLine={false} width={100} />
+                        <Tooltip contentStyle={{ background: '#002725', border: 'none', borderRadius: 10, fontSize: 12 }} itemStyle={{ color: '#dfefee' }} />
+                        <Bar dataKey="atendidos" name="Atendidos" fill="#147D78" radius={[0, 3, 3, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 ) : <Empty loading={loading} />}
               </div>
 
               {/* KPI mini cards */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <div className="chart-card" style={{ flex: 1 }}>
-                  <div className="chart-title">Resumen del período</div>
-                  <div className="chart-sub">{isGeneral ? 'Todas las sucursales' : meta.name}</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginTop: '0.5rem' }}>
-                    <DocMiniStat label="Médicos activos" value={doctorStats.length} color="#147D78" />
-                    <DocMiniStat label="Total atendidos" value={doctorStats.reduce((s, d) => s + d.atendidos, 0)} color="#B8BD45" />
-                    <DocMiniStat label="Total nuevos" value={doctorStats.reduce((s, d) => s + d.nuevos, 0)} color="#2e987d" />
-                    <DocMiniStat label="Total derivados" value={doctorStats.reduce((s, d) => s + d.derivados, 0)} color="#005450" />
-                  </div>
+              <div className="chart-card" style={{ flexShrink: 0 }}>
+                <div className="chart-title" style={{ fontSize: '0.82rem' }}>Resumen del período</div>
+                <div className="chart-sub">{isGeneral ? 'Todas las sucursales' : meta.name}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.4rem' }}>
+                  <DocMiniStat label="Médicos activos" value={doctorStats.length} color="#147D78" />
+                  <DocMiniStat label="Total atendidos" value={doctorStats.reduce((s, d) => s + d.atendidos, 0)} color="#B8BD45" />
+                  <DocMiniStat label="Total nuevos" value={doctorStats.reduce((s, d) => s + d.nuevos, 0)} color="#2e987d" />
+                  <DocMiniStat label="Total derivados" value={doctorStats.reduce((s, d) => s + d.derivados, 0)} color="#005450" />
                 </div>
               </div>
             </div>
@@ -486,15 +487,54 @@ export default function Dashboard() {
                       <tr><td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem', fontSize: '0.8rem' }}>Cargando...</td></tr>
                     ) : sortedDoctors.length === 0 ? (
                       <tr><td colSpan={5} style={{ textAlign: 'center', color: '#94a3b8', padding: '2rem', fontSize: '0.8rem' }}>Sin datos para el período</td></tr>
-                    ) : sortedDoctors.map((d, i) => (
-                      <tr key={i}>
-                        <td style={{ fontWeight: 600, color: '#002725' }}>{d.nombre}</td>
-                        <td><span style={{ fontWeight: 700, color: '#B8BD45' }}>{d.atendidos}</span></td>
-                        <td><span style={{ color: '#147D78' }}>{d.nuevos}</span></td>
-                        <td><span style={{ color: '#fb923c' }}>{d.ausentes}</span></td>
-                        <td><span style={{ color: '#005450' }}>{d.derivados}</span></td>
-                      </tr>
-                    ))}
+                    ) : sortedDoctors.map((d, i) => {
+                      const isExpanded = expandedDoctor === d.nombre;
+                      const osList = Object.entries(d.obrasSociales).sort((a, b) => b[1] - a[1]);
+                      const estudiosList = Object.entries(d.estudios).sort((a, b) => b[1] - a[1]);
+                      return (
+                        <Fragment key={i}>
+                          <tr
+                            onClick={() => setExpandedDoctor(isExpanded ? null : d.nombre)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <td style={{ fontWeight: 600, color: '#002725' }}>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                {isExpanded
+                                  ? <IconChevronUp size={13} style={{ color: '#147D78', flexShrink: 0 }} />
+                                  : <IconChevronDown size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />}
+                                {d.nombre}
+                              </span>
+                            </td>
+                            <td><span style={{ fontWeight: 700, color: '#B8BD45' }}>{d.atendidos}</span></td>
+                            <td><span style={{ color: '#147D78' }}>{d.nuevos}</span></td>
+                            <td><span style={{ color: '#fb923c' }}>{d.ausentes}</span></td>
+                            <td><span style={{ color: '#005450' }}>{d.derivados}</span></td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={5} style={{ background: '#f0faf9', padding: '0.6rem 1rem 0.8rem 2.2rem', borderBottom: '1px solid #e0f0ef' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                                  <BreakdownList
+                                    title="Por obra social"
+                                    items={osList}
+                                    barColor="#147D78"
+                                    countColor="#147D78"
+                                    barBg="#c8ebe8"
+                                  />
+                                  <BreakdownList
+                                    title="Por tipo de estudio"
+                                    items={estudiosList}
+                                    barColor="#B8BD45"
+                                    countColor="#727d10"
+                                    barBg="#e8ecb8"
+                                  />
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -542,9 +582,43 @@ function DocSortTh({ col, sort, onSort, children }: {
 
 function DocMiniStat({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div style={{ background: '#f8fffe', borderRadius: 10, padding: '0.6rem 0.75rem', border: '1px solid #e0f0ef' }}>
-      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8', fontWeight: 600, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.6rem', color, fontWeight: 400, lineHeight: 1 }}>{value}</div>
+    <div style={{ background: '#f8fffe', borderRadius: 8, padding: '0.45rem 0.6rem', border: '1px solid #e0f0ef' }}>
+      <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94a3b8', fontWeight: 600, marginBottom: 2 }}>{label}</div>
+      <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.3rem', color, fontWeight: 400, lineHeight: 1 }}>{value}</div>
+    </div>
+  );
+}
+
+function BreakdownList({ title, items, barColor, countColor, barBg }: {
+  title: string;
+  items: [string, number][];
+  barColor: string;
+  countColor: string;
+  barBg: string;
+}) {
+  const max = items[0]?.[1] ?? 1;
+  return (
+    <div>
+      <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#94a3b8', fontWeight: 600, marginBottom: '0.45rem' }}>
+        {title}
+      </div>
+      {items.length === 0 ? (
+        <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>Sin datos</span>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.28rem' }}>
+          {items.map(([label, count]) => (
+            <div key={label} style={{ display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ position: 'relative', height: 20, background: barBg, borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ position: 'absolute', inset: 0, width: `${Math.round((count / max) * 100)}%`, background: barColor, borderRadius: 4, opacity: 0.55 }} />
+                <span style={{ position: 'relative', fontSize: '0.72rem', color: '#002725', paddingLeft: '0.4rem', lineHeight: '20px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block' }}>
+                  {label}
+                </span>
+              </div>
+              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: countColor, minWidth: 18, textAlign: 'right' }}>{count}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
