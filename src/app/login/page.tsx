@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import '../globals.css';
 
 export default function LoginPage() {
   const [email, setEmail]           = useState('');
@@ -22,12 +23,13 @@ export default function LoginPage() {
     setError('');
     const supabase = createClient();
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
     if (authError) {
       setError('Email o contraseña incorrectos');
+      setLoading(false);
     } else {
       router.push('/');
       router.refresh();
+      // loading queda true hasta que el componente se desmonte con la navegación
     }
   };
 
@@ -35,6 +37,7 @@ export default function LoginPage() {
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'linear-gradient(135deg, #001a19 0%, #002725 60%, #003330 100%)',
+      fontFamily: 'var(--font-body)',
     }}>
       <form onSubmit={handleSubmit} style={{
         background: 'rgba(255,255,255,0.04)',
@@ -56,7 +59,7 @@ export default function LoginPage() {
             style={{ height: 52, marginBottom: '1rem' }}
             onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
-          <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#dfefee', letterSpacing: '-0.02em' }}>Panel de gestión</div>
+          <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#dfefee', letterSpacing: '-0.02em', fontFamily: 'var(--font-display)' }}>Panel de gestión</div>
           <div style={{ fontSize: '0.82rem', color: 'rgba(223,239,238,0.45)', marginTop: 4 }}>Ingresá tus credenciales para continuar</div>
         </div>
 
@@ -152,11 +155,25 @@ export default function LoginPage() {
             fontSize: '0.95rem',
             fontWeight: 700,
             cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.7 : 1,
+            opacity: loading ? 0.85 : 1,
             letterSpacing: '0.02em',
             marginTop: '0.2rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.5rem',
           }}
         >
+          {loading && (
+            <span style={{
+              width: 16, height: 16, borderRadius: '50%',
+              border: '2px solid rgba(255,255,255,0.35)',
+              borderTopColor: '#fff',
+              display: 'inline-block',
+              animation: 'spin 0.7s linear infinite',
+              flexShrink: 0,
+            }} />
+          )}
           {loading ? 'Ingresando...' : 'Ingresar'}
         </button>
       </form>
