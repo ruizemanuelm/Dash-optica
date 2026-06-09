@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import '../app/globals.css';
 import {
@@ -39,25 +40,11 @@ type DocSortCol = Exclude<keyof DoctorStats, 'obrasSociales'>;
 interface SortState<C extends string> { col: C | null; dir: 'asc' | 'desc'; }
 
 export default function Dashboard() {
-  const [session, setSession] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(!!data.session);
-    });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      setSession(!!s);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  if (session === null) return null;
-  if (!session) return <LoginScreen onLogin={() => setSession(true)} />;
   return <DashboardContent />;
 }
 
 function DashboardContent() {
+  const router = useRouter();
   const [selected,    setSelected]   = useState<BranchKey>('general');
   const [dateFrom,    setDateFrom]   = useState(monthStartStr);
   const [dateTo,      setDateTo]     = useState(todayStr);
@@ -293,7 +280,11 @@ function DashboardContent() {
             <IconDownload size={15} /> {downloading ? 'Descargando...' : 'Exportar Excel'}
           </button>
           <button
-            onClick={async () => { const supabase = createClient(); await supabase.auth.signOut(); }}
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              router.push('/login');
+            }}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: 8, padding: '8px 12px', color: '#f87191', cursor: 'pointer', fontSize: '0.85rem', width: '100%' }}
           >
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -714,168 +705,6 @@ function LoadingScreen() {
       <div style={{ fontSize: '0.82rem', color: 'rgba(223,239,238,0.45)', letterSpacing: '0.04em' }}>
         Cargando datos...
       </div>
-    </div>
-  );
-}
-
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
-  const [usuario, setUsuario] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!usuario.trim()) { setError('El email es obligatorio'); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(usuario)) { setError('Ingresá un email válido'); return; }
-    if (!password) { setError('La contraseña es obligatoria'); return; }
-    if (password.length < 6) { setError('La contraseña debe tener al menos 6 caracteres'); return; }
-    setLoading(true);
-    setError('');
-    const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: usuario,
-      password,
-    });
-    setLoading(false);
-    if (authError) {
-      setError('Usuario o contraseña incorrectos');
-    } else {
-      onLogin();
-    }
-  };
-
-  const [showPassword, setShowPassword] = useState(false);
-
-  return (
-    <div style={{
-      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'linear-gradient(135deg, #001a19 0%, #002725 60%, #003330 100%)',
-    }}>
-      <form onSubmit={handleSubmit} style={{
-        background: 'rgba(255,255,255,0.04)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 20,
-        padding: '2.5rem 2rem',
-        width: '100%',
-        maxWidth: 360,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1.2rem',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo-ocularyb.png"
-            alt="OcularYB"
-            style={{ height: 52, marginBottom: '1rem' }}
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-          <div style={{ fontSize: '1.35rem', fontWeight: 700, color: '#dfefee', letterSpacing: '-0.02em' }}>Panel de gestión</div>
-          <div style={{ fontSize: '0.82rem', color: 'rgba(223,239,238,0.45)', marginTop: 4 }}>Ingresá tus credenciales para continuar</div>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(223,239,238,0.5)', fontWeight: 600 }}>
-            Email
-          </label>
-          <input
-            type="email"
-            value={usuario}
-            onChange={e => { setUsuario(e.target.value); setError(''); }}
-            autoComplete="email"
-            style={{
-              background: 'rgba(255,255,255,0.06)',
-              border: error ? '1px solid #f43f5e' : '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 10,
-              padding: '0.65rem 0.9rem',
-              color: '#dfefee',
-              fontSize: '0.95rem',
-              outline: 'none',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-          />
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.07em', color: 'rgba(223,239,238,0.5)', fontWeight: 600 }}>
-            Contraseña
-          </label>
-          <div style={{ position: 'relative' }}>
-            <input
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={e => { setPassword(e.target.value); setError(''); }}
-              autoComplete="current-password"
-              style={{
-                background: 'rgba(255,255,255,0.06)',
-                border: error ? '1px solid #f43f5e' : '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 10,
-                padding: '0.65rem 2.5rem 0.65rem 0.9rem',
-                color: '#dfefee',
-                fontSize: '0.95rem',
-                outline: 'none',
-                width: '100%',
-                boxSizing: 'border-box',
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(v => !v)}
-              style={{
-                position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
-                background: showPassword ? 'rgba(20,125,120,0.25)' : 'rgba(255,255,255,0.08)',
-                border: showPassword ? '1px solid rgba(20,125,120,0.5)' : '1px solid rgba(255,255,255,0.15)',
-                borderRadius: 6, cursor: 'pointer',
-                color: showPassword ? '#009c92' : 'rgb(0, 133, 124)',
-                padding: '4px 6px', lineHeight: 1, display: 'flex', alignItems: 'center',
-              }}
-              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-            >
-              {showPassword ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                  <line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-              )}
-            </button>
-          </div>
-        </div>
-
-        {error && (
-          <div style={{ fontSize: '0.82rem', color: '#f43f5e', textAlign: 'center', background: 'rgba(244,63,94,0.08)', borderRadius: 8, padding: '0.5rem' }}>
-            {error}
-          </div>
-        )}
-
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            background: 'linear-gradient(90deg, #147D78, #B8BD45)',
-            border: 'none',
-            borderRadius: 10,
-            padding: '0.75rem',
-            color: '#fff',
-            fontSize: '0.95rem',
-            fontWeight: 700,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            opacity: loading ? 0.7 : 1,
-            letterSpacing: '0.02em',
-            marginTop: '0.2rem',
-          }}
-        >
-          {loading ? 'Ingresando...' : 'Ingresar'}
-        </button>
-      </form>
     </div>
   );
 }

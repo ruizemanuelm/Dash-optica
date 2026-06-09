@@ -22,10 +22,14 @@ export async function middleware(request: NextRequest) {
   );
 
   const { data: { user } } = await supabase.auth.getUser();
+  const { pathname } = request.nextUrl;
 
-  // Proteger todas las rutas de API: devolver 401 si no hay sesión
-  if (request.nextUrl.pathname.startsWith('/api/') && !user) {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+  if (!user && pathname !== '/login') {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  if (user && pathname === '/login') {
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
   return supabaseResponse;

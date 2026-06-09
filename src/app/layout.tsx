@@ -11,6 +11,7 @@ const theme = createTheme({
 export const metadata: Metadata = {
   title: 'OcularYB — Panel de Gestión',
   description: 'Dashboard de gestión para clínica oftalmológica OcularYB',
+  icons: { icon: '/logo-ocularyb.png' },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
